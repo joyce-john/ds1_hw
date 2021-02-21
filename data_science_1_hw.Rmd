@@ -1,0 +1,322 @@
+---
+title: "Data Science 1 HW"
+author: "John Joyce"
+date: "2/19/2021"
+output: html_document
+  code_download: "yes"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(datasets)
+library(MASS)
+library(ISLR)
+library(caret)
+library(skimr)
+library(SmartEDA) # summary statistics relative to user-defined target variable
+library(kableExtra)
+library(factoextra) # find + viz optimal number of clusters for kmeans clustering
+library(NbClust)
+```
+# Penalized Models and PCA
+
+```{r, echo =  FALSE, warning = FALSE, message = FALSE}
+#  load property value data
+data <- readRDS(url('http://www.jaredlander.com/data/manhattan_Train.rds')) %>%
+  mutate(logTotalValue = log(TotalValue)) %>%
+  drop_na()
+```
+## a.  
+Below is a quick summary of the data:  
+```{r, echo =  FALSE, warning = FALSE, message = FALSE}
+
+# summary EDA as scrollable HTML table
+skim(data) %>% 
+  kbl %>% 
+  kable_paper %>% 
+  scroll_box(width = "100%", height = "600px")
+
+```
+
+Here are the numeric variables in order of their correlation (positive or negative) with the target variable, **logTotalPrice**.
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# numeric vars EDA relative to target variable
+numeric_var_stats <- SmartEDA::ExpNumStat(data, gp = "logTotalValue")
+
+# categorical vars EDA relative to target variable
+categorical_var_stats <- SmartEDA::ExpCatStat(data, Target = "logTotalValue")
+
+# show sorted table of absolute value of correlation
+numeric_var_stats %>% 
+  dplyr::select('Vname', 'cor') %>% 
+  rename('variable' = 'Vname', 'cor_with_target_var' = 'cor') %>%
+  filter(variable != "logTotalValue" & variable != "TotalValue") %>% 
+  arrange(desc(abs(cor_with_target_var))) %>% 
+  kable() %>% 
+  kable_styling()
+
+```
+## b.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# set seed and create index for training + test sets (30% of data for training set)
+set.seed(2021)
+index <- createDataPartition(data$logTotalValue, times = 1, p = 0.3, list = FALSE)
+
+# create training and test sets
+train <- slice(data, index)
+test <- slice(data, -index)
+
+# for the training set, let's just drop the ID and TotalValue columns
+# so we don't have to write the exclusion in every formula
+train <- train %>% dplyr::select(-c('ID', 'TotalValue'))
+
+```
+## c.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# OLS model
+
+train_control <- trainControl(method = "cv", # cross-validation
+                              number = "10", # ten-fold CV
+                              selectionFunction = "onese", # for selecting best model
+                              allowParallel = TRUE) # to speed up CV training
+
+# OLS model with all features
+ols_1 <- train(logTotalValue ~ .,
+               method = "lm",
+               data = train,
+               trainControl = train_control)
+
+# # simple OLS model with top 3 features based on correlation with target variable
+# # (this model is garbage, but I just wanted to try it out of curiousity)
+# ols_simple <- train(logTotalValue ~ BldgArea + NumFloors + BuiltFAR,
+#                method = "lm",
+#                data = train,
+#                trainControl = train_control)
+
+```
+## d.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# penalized models
+
+# ridge model
+ridge_tune_grid <- expand.grid(
+  "alpha" = c(0),
+  "lambda" = seq(0.05, 0.5, by = 0.025)
+)
+
+set.seed(2021)
+ridge_1 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale"),
+  tuneGrid = ridge_tune_grid,
+  trainControl = train_control)
+
+# LASSO model
+
+tenpowers <- 10^seq(-1, -5, by = -1)
+
+lasso_tune_grid <- expand.grid(
+  "alpha" = c(1),
+  "lambda" = c(tenpowers, tenpowers / 2) 
+)
+
+set.seed(2021)
+lasso_1 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale"),
+  tuneGrid = lasso_tune_grid,
+  trainControl = train_control
+)
+
+
+# elastic net model
+
+enet_tune_grid <- expand.grid(
+  "alpha" = seq(0, 1, by = 0.1),
+  "lambda" = union(lasso_tune_grid[["lambda"]], ridge_tune_grid[["lambda"]])
+)
+
+set.seed(2021)
+enet_1 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale"),
+  tuneGrid = enet_tune_grid,
+  trainControl = train_control
+)
+
+
+```
+## e.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# dataframe of RMSE in cross-validation
+cv_rmse_df <-
+  data.frame('model' = c('OLS', 'Ridge', 'LASSO', 'Elastic Net'), 
+             'RMSE' = c(min(ols_1$results$RMSE), min(ridge_1$results$RMSE),
+             min(lasso_1$results$RMSE), min(enet_1$results$RMSE)))
+
+# show the CV RMSE DF
+cv_rmse_df %>% 
+  kable(digits = 3) %>% 
+  kable_styling()
+
+```
+## f.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# PCA linear model
+
+tune_grid <- data.frame(ncomp = 60:90)
+
+set.seed(2021)
+
+ols_2 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "pcr",
+  trainControl = train_control,
+  tuneGrid = tune_grid,
+  preProcess = c("center", "scale")
+)
+
+```
+## g.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# penalized models with PCA in the preProcess-ing
+
+# ridge model
+
+set.seed(2021)
+ridge_2 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale", "nzv", "pca"),
+  tuneGrid = ridge_tune_grid,
+  trainControl = train_control)
+
+# LASSO model
+
+set.seed(2021)
+lasso_2 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale", "nzv", "pca"),
+  tuneGrid = lasso_tune_grid,
+  trainControl = train_control
+)
+
+
+# elastic net model
+
+set.seed(2021)
+enet_2 <- train(
+  logTotalValue ~ .,
+  data = train,
+  method = "glmnet",
+  preProcess = c("center", "scale", "nzv", "pca"),
+  tuneGrid = enet_tune_grid,
+  trainControl = train_control
+)
+
+
+```
+## h.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+cv_pca_rmse_df <-
+  data.frame('model' = c('OLS with PCA', 'Ridge with PCA',
+                         'LASSO with PCA', 'Elastic Net with PCA'), 
+             'RMSE' = c(min(ols_2$results$RMSE), min(ridge_2$results$RMSE),
+             min(lasso_2$results$RMSE), min(enet_2$results$RMSE)))
+
+# show the CV RMSE for models with PCA DF
+cv_pca_rmse_df %>% 
+  kable(digits = 3) %>% 
+  kable_styling()
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# make predictions on the test set and save to vector
+ols_2_pred <- predict(ols_2, test)
+
+# get test set RMSE
+RMSE(ols_2_pred, test$logTotalValue)
+```
+# Clustering with USArrests dataset
+
+## a.
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# load data
+df <- USArrests
+
+# view basic summary
+skim(df) %>% 
+  kbl %>% 
+  kable_paper %>% 
+  scroll_box(width = "100%", height = "600px")
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# de-mean the data for easier visualizations and comparisons
+df_demeaned <- mutate(df, across(everything(), ~ .x - mean(.x)))
+
+# consider scaling
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+# let's see if we can visualize the "elbow" point and spot the optimal number of clusters
+fviz_nbclust(df_demeaned, kmeans, method = "wss")
+
+# looks like we might end up choosing 2 or 3
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+nb <- NbClust(df_demeaned, method = "kmeans", min.nc = 2, max.nc = 10, index = "all")
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+
+```
