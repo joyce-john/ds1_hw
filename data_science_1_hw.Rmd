@@ -274,7 +274,7 @@ skim(df) %>%
   scroll_box(width = "100%", height = "600px")
 
 ```
-
+To prepare the data for clustering, we'll demean it.
 ```{r, echo = FALSE, warning=FALSE, message=FALSE}
 
 # de-mean the data for easier visualizations and comparisons
@@ -283,7 +283,9 @@ df_demeaned <- mutate(df, across(everything(), ~ .x - mean(.x)))
 # consider scaling
 
 ```
+## b.
 
+Visualize the optimal number of clusters for the demeaned data. We'll probably consider 2 or 3 to be the optimal number, based on the conspicuous "elbow" in this chart where the sum of squares drops off considerably.
 ```{r, echo = FALSE, warning=FALSE, message=FALSE}
 
 # let's see if we can visualize the "elbow" point and spot the optimal number of clusters
@@ -295,9 +297,18 @@ fviz_nbclust(df_demeaned, kmeans, method = "wss")
 ```{r, echo = FALSE, warning=FALSE, message=FALSE}
 
 nb <- NbClust(df_demeaned, method = "kmeans", min.nc = 2, max.nc = 10, index = "all")
-```
 
+# NbClust offers us the following conclusion:
+# * According to the majority rule, the best number of clusters is  2 
+```
+## c.
 ```{r, echo = FALSE, warning=FALSE, message=FALSE}
+km <- kmeans(df_demeaned, centers = 2) #set centers = 2 ; that's the number of clusters we want
+
+df_demeaned_w_clusters <- mutate(df_demeaned, cluster = factor(km$cluster))
+
+ggplot(df_demeaned_w_clusters, aes(x = Murder, y = UrbanPop, color = cluster)) +
+  geom_point()
 
 ```
 
