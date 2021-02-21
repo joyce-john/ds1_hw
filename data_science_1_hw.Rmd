@@ -325,7 +325,12 @@ first_two_pc <- as_tibble(pca_result$x[, 1:2])
 
 ggplot(first_two_pc, aes(x = PC1, y = PC2)) +
   geom_point() +
-  geom_point(data = df_demeaned_scaled_w_clusters, aes(x = Murder, y = UrbanPop, color = cluster))
+  labs(title = "PC1 and PC2")
+
+ggplot(first_two_pc, aes(x = PC1, y = PC2)) +
+  geom_point() +
+  geom_point(data = df_demeaned_scaled_w_clusters, aes(x = Murder, y = UrbanPop, color = cluster)) +
+  labs(x = "PC1 / Murder", y = "PC2 / UrbanPop", title = "PC1 and PC2 with Murder and UrbanPop")
 ```
 
 ```{r, echo = FALSE, warning=FALSE, message=FALSE}
