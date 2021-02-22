@@ -3,6 +3,11 @@ title: "Data Science 1 HW"
 author: "John Joyce"
 date: "2/19/2021"
 output: html_document
+  theme: "cosmo"
+  toc: true
+  toc_float: true
+    collapsed: false
+    smooth_scroll: false
   code_folding: hide
   code_download: "yes"
 ---
@@ -22,8 +27,7 @@ library(NbClust)
 
 options(digits = 3)
 ```
-# Penalized Models and PCA
-
+# 1: Penalized Models and PCA
 
 ## a.  
 Below is a quick summary of the data:  
@@ -40,7 +44,7 @@ skim(data) %>%
   kable_paper %>% 
   scroll_box(width = "100%", height = "600px")
 
-```
+```  
 
 Here are the numeric variables in order of their correlation (positive or negative) with the target variable, **logTotalPrice**. The variables with the strongest correlation might be useful predictors of the target variable. The top 10 are shown.  
 
@@ -62,7 +66,7 @@ numeric_var_stats %>%
   kable() %>% 
   kable_styling()
 
-```
+```  
 ## b.
 
 We create training and test sets, allocating 30% of the data to training. To make the model training formulas a bit more convenient, we can drop **ID** and **TotalValue** from the training set, since they won't be used for predicting **logTotalValue**.  
@@ -80,7 +84,7 @@ test <- slice(data, -index)
 # so we don't have to write the exclusion in every formula
 train <- train %>% dplyr::select(-c('ID', 'TotalValue'))
 
-```
+```  
 ## c.
 
 We create a linear model to predict **logTotalValue** and use 10-fold cross-validation.  
@@ -105,7 +109,7 @@ ols_1 <- train(logTotalValue ~ .,
 #                data = train,
 #                trainControl = train_control)
 
-```
+```  
 ## d.
 
 We use penalized linear models for the same task. These models penalize complexity in different ways, but all may reduce the number of coefficients. The best models (ridge / elastic net) improve on the simple linear model a little bit.
@@ -165,7 +169,7 @@ enet_1 <- train(
   trainControl = train_control
 )
 
-```
+```  
   
 Here are the results:  
 ```{r Q1 d2, echo = FALSE, message = FALSE, warning = FALSE}
@@ -188,10 +192,10 @@ cv_rmse_df_one_se %>%
   kable(digits = 3) %>% 
   kable_styling()
 
-```
+```  
 ## e.
 
-We experiment with setting **oneSE** as the **selection function** in caret's **trainControl**. This follows the "one standard error" rule of picking the simplest model which is within one standard error of the optimal model found through experimentation. You can read more about this in caret's documentation: [link to pdf](https://cran.r-project.org/web/packages/caret/caret.pdf)
+We experiment with setting **oneSE** as the **selection function** in caret's **trainControl**. This follows the "one standard error" rule of picking the simplest model which is within one standard error of the optimal model found through experimentation. You can read more about this in caret's documentation: [link to pdf](https://cran.r-project.org/web/packages/caret/caret.pdf)  
 ```{r Q1 e, echo = FALSE, warning=FALSE, message=FALSE}
 
 # new train_control with one_se selection function
@@ -247,7 +251,7 @@ enet_2 <- train(
 
 When we view the results for the **oneSE** approach, we notice that the simple linear model has a slightly higher RMSE, but the performance of the penalized models hasn't changed (at least within three significant digits). Theoretically, the **oneSE** approach should give us a slightly simpler, slightly less well-fit model. (The idea is that this slightly simpler model is less likely to be overfit and should actually perform better in external data.)  
 
-The LASSO model is the simplest, in terms of number of coefficients, and it's performance is certainly "good enough": it only barely trails behind the ridge and elastic net models.
+The LASSO model is the simplest, in terms of number of coefficients, and it's performance is certainly "good enough": it only barely trails behind the ridge and elastic net models.  
 ```{r Q1 e2, echo = FALSE, warning = FALSE, message = FALSE}
 
 # number of non-zero coefficients for each model
@@ -267,7 +271,7 @@ cv_rmse_df_one_se <-
 cv_rmse_df_one_se %>% 
   kable(digits = 3) %>% 
   kable_styling()
-```
+```  
 ## f.
 
 We try to improve the linear model by using PCA for dimensionality reduction. This improves the fit of the linear model, and it makes the linear model the best performer in terms of RMSE. Results are shown in the PCA models table in the next section.  
@@ -288,7 +292,7 @@ ols_3 <- train(
   preProcess = c("center", "scale")
 )
 
-```
+```  
 ## g.
 
 We apply PCA in the preprocessing before fitting the penalized models. We also drop zero-variance features in pre-processing.  
@@ -338,7 +342,7 @@ enet_3 <- train(
 )
 
 
-```
+```  
   
 Results for PCA models are shown below:   
 
@@ -358,7 +362,7 @@ cv_pca_rmse_df %>%
   kable(digits = 3) %>% 
   kable_styling()
 
-```
+```  
 
 ## h.
 
@@ -370,7 +374,7 @@ ols_3_pred <- predict(ols_3, test)
 
 # get test set RMSE
 ols_3_rmse <- RMSE(ols_3_pred, test$logTotalValue)
-```
+```  
   
 On the test set, the RMSE is a higher: `r ols_3_rmse`  
   
@@ -408,7 +412,7 @@ df_demeaned <- mutate(df, across(everything(), ~ .x - mean(.x)))
 # scale the data to avoid overweighting variables with large values (for example "assault" VS "murder")
 df_demeaned_scaled <-  mutate(df_demeaned, across(everything(), ~ .x / sd(.x)))
 
-```
+```  
 ## b.
 
 Visualize the optimal number of clusters for the demeaned data. We'll probably consider the optimal number to be 2, based on the conspicuous "elbow" in this chart where the sum of squares drops off considerably.  
