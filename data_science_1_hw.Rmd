@@ -2,14 +2,16 @@
 title: "Data Science 1 HW"
 author: "John Joyce"
 date: "2/19/2021"
-output: html_document
-  theme: "cosmo"
-  toc: true
-  toc_float: true
-    collapsed: false
-    smooth_scroll: false
-  code_folding: hide
-  code_download: "yes"
+output: 
+  html_document:
+    theme: "cosmo"
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    #  collapsed: false
+    #  smooth_scroll: false
+    code_folding: hide
+    #code_download: "yes"
 ---
 
 ```{r setup, include=FALSE}
@@ -45,10 +47,10 @@ skim(data) %>%
   scroll_box(width = "100%", height = "600px")
 
 ```  
-
+  
 Here are the numeric variables in order of their correlation (positive or negative) with the target variable, **logTotalPrice**. The variables with the strongest correlation might be useful predictors of the target variable. The top 10 are shown.  
 
-```{r Q1 a2, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 a2, echo = TRUE, warning=FALSE, message=FALSE}
 
 # numeric vars EDA relative to target variable
 numeric_var_stats <- SmartEDA::ExpNumStat(data, gp = "logTotalValue")
@@ -70,7 +72,7 @@ numeric_var_stats %>%
 ## b.
 
 We create training and test sets, allocating 30% of the data to training. To make the model training formulas a bit more convenient, we can drop **ID** and **TotalValue** from the training set, since they won't be used for predicting **logTotalValue**.  
-```{r Q1 b, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 b, echo = TRUE, warning=FALSE, message=FALSE}
 
 # set seed and create index for training + test sets (30% of data for training set)
 set.seed(2021)
@@ -88,7 +90,7 @@ train <- train %>% dplyr::select(-c('ID', 'TotalValue'))
 ## c.
 
 We create a linear model to predict **logTotalValue** and use 10-fold cross-validation.  
-```{r Q1 c, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 c, echo = TRUE, warning=FALSE, message=FALSE}
 
 # OLS model
 
@@ -113,7 +115,7 @@ ols_1 <- train(logTotalValue ~ .,
 ## d.
 
 We use penalized linear models for the same task. These models penalize complexity in different ways, but all may reduce the number of coefficients. The best models (ridge / elastic net) improve on the simple linear model a little bit.
-```{r Q1 d1, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 d1, echo = TRUE, warning=FALSE, message=FALSE}
 
 # penalized models
 
@@ -172,7 +174,7 @@ enet_1 <- train(
 ```  
   
 Here are the results:  
-```{r Q1 d2, echo = FALSE, message = FALSE, warning = FALSE}
+```{r Q1 d2, echo = TRUE, message = FALSE, warning = FALSE}
 
 # get the number of non-zero coefficients for each model
 ols_1_nz_coef <- length(coef(ols_1$finalModel)) # just the length of the list of coefficients
@@ -196,7 +198,7 @@ cv_rmse_df_one_se %>%
 ## e.
 
 We experiment with setting **oneSE** as the **selection function** in caret's **trainControl**. This follows the "one standard error" rule of picking the simplest model which is within one standard error of the optimal model found through experimentation. You can read more about this in caret's documentation: [link to pdf](https://cran.r-project.org/web/packages/caret/caret.pdf)  
-```{r Q1 e, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 e, echo = TRUE, warning=FALSE, message=FALSE}
 
 # new train_control with one_se selection function
 train_control_one_se <- trainControl(method = "cv", # cross-validation
@@ -252,7 +254,7 @@ enet_2 <- train(
 When we view the results for the **oneSE** approach, we notice that the simple linear model has a slightly higher RMSE, but the performance of the penalized models hasn't changed (at least within three significant digits). Theoretically, the **oneSE** approach should give us a slightly simpler, slightly less well-fit model. (The idea is that this slightly simpler model is less likely to be overfit and should actually perform better in external data.)  
 
 The LASSO model is the simplest, in terms of number of coefficients, and it's performance is certainly "good enough": it only barely trails behind the ridge and elastic net models.  
-```{r Q1 e2, echo = FALSE, warning = FALSE, message = FALSE}
+```{r Q1 e2, echo = TRUE, warning = FALSE, message = FALSE}
 
 # number of non-zero coefficients for each model
 ols_2_nz_coef <- length(coef(ols_2$finalModel)) # just the length of the list of coefficients
@@ -275,7 +277,7 @@ cv_rmse_df_one_se %>%
 ## f.
 
 We try to improve the linear model by using PCA for dimensionality reduction. This improves the fit of the linear model, and it makes the linear model the best performer in terms of RMSE. Results are shown in the PCA models table in the next section.  
-```{r Q1 f, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 f, echo = TRUE, warning=FALSE, message=FALSE}
 
 # PCA linear model
 
@@ -300,7 +302,7 @@ We apply PCA in the preprocessing before fitting the penalized models. We also d
 It does not help to achieve a better fit; RMSE is now **higher** for the penalized models. My intuition is that PCA and penalized models take different approaches to reducing noise in the features. If you run PCA before fitting a penalized model, you don't give the LASSO/ridge/E-net algorithm a chance to punish large coefficients independently - now those features which would normally result in large coefficients exist as linear combinations with other features. Then the linear combinations of features could get punished in a way that is not optimal.  
 
 Generally, we should probably try both PCA and penalized models, and just see which one works better for our problem.  
-```{r Q1 g1, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q1 g1, echo = TRUE, warning=FALSE, message=FALSE}
 
 # penalized models with PCA in the preProcess
 # also drop zero-variance features with "nzv"
@@ -346,7 +348,7 @@ enet_3 <- train(
   
 Results for PCA models are shown below:   
 
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
+```{r, echo = TRUE, warning=FALSE, message=FALSE}
 
 
 # PCA CV RMSE dataframe with number of components
@@ -366,8 +368,8 @@ cv_pca_rmse_df %>%
 
 ## h.
 
-Based on RMSE in cross-validation, the **best model is the linear model with PCA**. The RMSE in cross-validation is `r ols_3$results$RMSE`. We try it on the test set.  
-```{r, echo = FALSE, warning=FALSE, message=FALSE}
+Based on RMSE in cross-validation, the **best model is the linear model with PCA**. The RMSE in cross-validation is `r min(ols_3$results$RMSE)`. We try it on the test set.  
+```{r, echo = TRUE, warning=FALSE, message=FALSE}
 
 # make predictions on the test set and save to vector
 ols_3_pred <- predict(ols_3, test)
@@ -382,8 +384,10 @@ Perhaps we could improve model performance with a larger training set.
 
 # 2: Clustering with USArrests dataset
 
-## a.  First, we take a quick look at the summary statistics and histograms of the variables.  
-```{r Q2 a1, echo = FALSE, warning=FALSE, message=FALSE}
+## a.  
+
+First, we take a quick look at the summary statistics and histograms of the variables.  
+```{r Q2 a1, echo = TRUE, warning=FALSE, message=FALSE}
 
 # load data
 df <- USArrests
@@ -402,9 +406,10 @@ df %>%
     facet_wrap(~ key, scales = "free") +
     geom_histogram()
 
-```
+```  
+
 To prepare the data for clustering, we'll de-mean and scale it. (Basically, standardization.) This should make visualizing the data easier, and it will allow us to compare the variables easily on a common scale.  
-```{r Q2 a2, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 a2, echo = TRUE, warning=FALSE, message=FALSE}
 
 # de-mean the data for easier visualizations and comparisons
 df_demeaned <- mutate(df, across(everything(), ~ .x - mean(.x)))
@@ -416,7 +421,7 @@ df_demeaned_scaled <-  mutate(df_demeaned, across(everything(), ~ .x / sd(.x)))
 ## b.
 
 Visualize the optimal number of clusters for the demeaned data. We'll probably consider the optimal number to be 2, based on the conspicuous "elbow" in this chart where the sum of squares drops off considerably.  
-```{r Q2 b1, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 b1, echo = TRUE, warning=FALSE, message=FALSE}
 
 # let's see if we can visualize the "elbow" point and spot the optimal number of clusters
 fviz_nbclust(df_demeaned_scaled, kmeans, method = "wss")
@@ -425,7 +430,7 @@ fviz_nbclust(df_demeaned_scaled, kmeans, method = "wss")
 ```  
   
 We can also lean on NbClust to determine the optimal number of clusters. This method also suggests using 2 clusters.  
-```{r Q2 b2, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 b2, echo = TRUE, warning=FALSE, message=FALSE, fig.show = 'hide', results = 'hide'}
 
 nb <- NbClust(df_demeaned_scaled, method = "kmeans", min.nc = 2, max.nc = 10, index = "all")
 
@@ -435,7 +440,7 @@ nb <- NbClust(df_demeaned_scaled, method = "kmeans", min.nc = 2, max.nc = 10, in
 ## c.
 
 Here, we use k-means clustering and plot observations colored by clusters. On the X axis is **Murder** and  on the Y axis is **Urban Population**.  
-```{r Q2 c, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 c, echo = TRUE, warning=FALSE, message=FALSE}
 
 set.seed(2021)
 
@@ -447,10 +452,11 @@ ggplot(df_demeaned_scaled_w_clusters, aes(x = Murder, y = UrbanPop, color = clus
   geom_point()
 
 ```  
-## d.
+
+## d.  
 
 We determine the first two principal components and plot them together below. There appear to be two distinct groups. I have added a blue annotation line to mark them clearly.  
-```{r Q2 d1, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 d1, echo = TRUE, warning=FALSE, message=FALSE}
 # get principal components
 pca_result <- prcomp(df, scale = TRUE)
 
@@ -468,7 +474,7 @@ ggplot(first_two_pc, aes(x = PC1, y = PC2)) +
 
 If we overlay the clusters we identified above (before PCA), we observe a similar pair of grouped data points. They have a similar size and location, and the division between the clusters occurs right along the edge of Group B in the principal components.  
 
-```{r Q2 d2, echo = FALSE, warning=FALSE, message=FALSE}
+```{r Q2 d2, echo = TRUE, warning=FALSE, message=FALSE}
 
 # PCs and clustered data shown together
 ggplot(first_two_pc, aes(x = PC1, y = PC2)) +
@@ -478,4 +484,74 @@ ggplot(first_two_pc, aes(x = PC1, y = PC2)) +
   annotate("text", x = c(-2,1), y = c(2,2), label = c("Group A", "Group B"), color = "red", size = 5)
 
 
-```
+```  
+
+# 3: PCA of High-Dimensional Data  
+
+## a.  
+
+Load the data and perform PCA with scaled features.  
+```{r Q3 a, echo = TRUE, warning=FALSE, message=FALSE}
+
+# load the data
+genes <- read_csv("https://www.statlearning.com/s/Ch10Ex11.csv", col_names = FALSE) %>%
+  t() %>% as_tibble()  # the original dataset is of dimension 1000x40 so we transpose it
+
+#dim(data)
+
+# do PCA with scaled data
+pca_genes <- prcomp(genes, scale = TRUE)
+
+
+```  
+
+## b.  
+
+We visualize data points in the space of the first two principal components, and we see two *extremely distinct groups* in the first principal component. The text labels are actually row names from the matrix. We can see that one group has rows 1-20 (the healthy patients) and that the other group has rows 21-40 (the diseased patients).
+```{r Q3 b, echo = TRUE, warning=FALSE, message=FALSE}
+
+# vizualize data points in the space of the first two principal components
+fviz_pca_ind(pca_genes)
+
+```  
+
+## c.  
+
+We can look at the features that have the highest **loadings** into PC1 by accessing the first column of the PCA results matrix (the column for PC1), and looking at the highest values in that column. Here are the top ten:  
+```{r Q3 c1, echo = TRUE, warning=FALSE, message=FALSE}
+
+# access the first column of the matrix (PC1), sort in descending order, take the top two values
+head(
+  sort(
+    desc(pca_genes$rotation[,1])), n = 10) %>% kable(col.names = "") %>% kable_styling()
+
+```  
+
+We can plot the two top features which contributed to PC1, and color the data points by health status. (The first 20 rows in our data are from healthy patients, the rest are from diseased patients.) The figure below makes it obvious why these two features contributed so much to PC1:    
+
+```{r Q3 c2, echo = TRUE, warning=FALSE, message=FALSE}
+
+# plot top two features contributing to PC1 in a coordinate system defined by their own values
+
+# make a vector of health status
+# first 20 are healthy, second 20 are diseased
+# there is obviously a better way to do this, but I am tired
+health_vector <- c('Healthy','Healthy','Healthy','Healthy','Healthy',
+                   'Healthy','Healthy','Healthy','Healthy','Healthy',
+                   'Healthy','Healthy','Healthy','Healthy','Healthy',
+                   'Healthy','Healthy','Healthy','Healthy','Healthy',
+                   'Diseased','Diseased','Diseased','Diseased','Diseased',
+                   'Diseased','Diseased','Diseased','Diseased','Diseased',
+                   'Diseased','Diseased','Diseased','Diseased','Diseased',
+                   'Diseased','Diseased','Diseased','Diseased','Diseased')
+
+
+# 
+genes %>% 
+  mutate(`Health Status` = health_vector) %>% 
+  ggplot(aes(x = V502, y = V589, color = `Health Status`)) + 
+  geom_point()
+
+```  
+
+It would have been very difficult to find these features by visual EDA, and it would be difficult to build a model with so many features (1000) and so few observations (40). PCA was the perfect tool in this case.
